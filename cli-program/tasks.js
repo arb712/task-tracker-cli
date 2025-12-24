@@ -6,6 +6,9 @@ const {
     v4: uuidv4
 } = require('uuid');
 const moment = require("moment");
+
+const TaskStatus = require("../enums/TaskStatus");
+
 program
     .command("task:add")
     .summary("To add task to the list. For usage: node cli.js task:add -h")
@@ -30,6 +33,10 @@ program
             targetData = require(`./task-list/${fileName}.json`);
             if (!targetData.task || !Array.isArray(targetData.task))
                 program.error("JSON file is not in the right format.")
+        }
+        
+        if(!TaskStatus.includes(options.status)){
+            program.error("Status can be only pending, done or in-progress, please use one of the option.")
         }
 
         const dataToPush = {
