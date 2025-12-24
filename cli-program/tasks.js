@@ -108,6 +108,7 @@ program
                     if(data?.id === options?.id){
                         data.task_description = taskDescription;
                         data.status = status;
+                        data.updatedAt = moment();
                     }
 
                     return data;
@@ -121,7 +122,7 @@ program
             }
         } catch (error) {
             console.error(error.stack, error.message, error)
-            program.error(`Error while updating task: ${optionss.target_file} id: ${options.id}`)
+            program.error(`Error while updating task: ${options.target_file} id: ${options.id}`)
         }
     })
 
