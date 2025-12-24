@@ -1,0 +1,15 @@
+{
+  "name": "task-tracker-cli",
+  "version": "1.0.0",
+  "main": "app.js",
+  "scripts": {},
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "description": "",
+  "dependencies": {
+    "commander": "^14.0.2",
+    "moment": "^2.30.1",
+    "uuid": "^13.0.0"
+  }
+}
