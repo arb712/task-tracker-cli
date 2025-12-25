@@ -7,7 +7,7 @@ const {
 } = require('uuid');
 const moment = require("moment");
 const path = require('path');
-
+const chalk = require('chalk');
 
 const TaskStatus = require("../enums/TaskStatus");
 
@@ -30,6 +30,11 @@ const validateTaskStatus = (status, program) => {
     }
 }
 
+const isFileExist = (path) => {
+    const isExist = fs.existsSync(path);
+    return isExist;
+}
+
 program
     .command("task:add")
     .summary("To add task to the list. For usage: node cli.js task:add -h")
@@ -38,7 +43,6 @@ program
     .requiredOption("-s, --status <status>", "Status for the task")
     .requiredOption("-f, --target_file <file_name>", "File name for task to save into")
     .action((options) => {
-        console.log(options, "checkOptions")
         const checkTaskFolder = fs.readdirSync(`${__dirname}/task-list`);
         const filterFolderContents = checkTaskFolder.filter(data => data.endsWith(".json"))
         // Check if json file with same name exists or not
@@ -71,8 +75,8 @@ program
         targetData = sortTaskByCreatedAt(targetData);
         try {
             fs.writeFile(`${__dirname}/task-list/${fileName}.json`, JSON.stringify(targetData), function writeJSON(err) {
-                if (err) return console.log(err);
-                console.log(`Successfully added task to ${fileName}`)
+                if (err) return console.log(chalk.red(err));
+                console.log(chalk.green(`Successfully added task to ${fileName}`))
             });
         } catch (error) {
             program.error("Error while creating/modifying target file.", error, error.stack, error.message)
@@ -116,8 +120,8 @@ program
                 targetFile = sortTaskByCreatedAt(targetFile);
 
                 fs.writeFile(`${__dirname}/task-list/${options.target_file}.json`, JSON.stringify(targetFile), function writeJSON(err) {
-                    if (err) return console.log(err);
-                    console.log(`Successffully updating task: '${options.target_file}' id: '${options.id}'`)
+                    if (err) return console.log(chalk.red(err));
+                    console.log(chalk.green(`Successffully updating task: '${options.target_file}' id: '${options.id}'`))
                 });
             }
         } catch (error) {
@@ -155,16 +159,16 @@ program
 
             if(options?.status){
                 targetFile.task = targetFile.task.filter(task => task.status === options?.status);
-                console.info(`List task of ${options.target_file}:`)
+                console.info(chalk.blue(`List task of ${options.target_file}:`))
                 if(targetFile.task.length < 1){
-                    console.info(`There is no data in this task with status ${options.status}`)
+                    console.info(chalk.red(`There is no data in this task with status ${options.status}`))
                     return;
                 }
                 console.table(targetFile.task)
                 return;
             }
 
-            console.info(`List task of ${options.target_file}:`)
+            console.info(chalk.blue(`List task of ${options.target_file}:`))
             console.table(targetFile.task)
             return;
         }
@@ -190,12 +194,12 @@ program
 
                 const isAllEmpty = Object.values(combinedTask).every(data => data.length < 1);
                 if(isAllEmpty){
-                    console.info(`There is no data in this task with status ${options.status}`)
+                    console.info(chalk.blue(`There is no data in this task with status ${options.status}`))
                     return;
                 }
 
                 Object.entries(combinedTask).forEach(([fileName, tasks]) => {
-                    console.info(`List task of ${fileName}:`)
+                    console.info(chalk.blue(`List task of ${fileName}:`))
                     console.table(tasks)
                 })
                 return combinedTask;
@@ -219,46 +223,55 @@ program
         if(options?.all && options?.status && options?.target_file && options?.id){
             program.error("Unable to use all flag at the same time.")
         }
-
+        validateTaskStatus(options?.status, program);
         if(options?.all && options?.target_file && !options?.status && !options?.id){
-            const isFileExist = fs.existsSync(`${folderPath}/${options?.target_file}.json`)
-            if(isFileExist){
+            const isExist = isFileExist(`${folderPath}/${options?.target_file}.json`);
+            if(isExist){
                 fs.unlinkSync(`${folderPath}/${options?.target_file}.json`, (err) => {
                     if (err) throw err;
-                    console.log(`${options?.target_file} task has successfully deleted.`);
                 })
+                console.log(chalk.green(`${options?.target_file} task has successfully deleted`));
+            } else{
+                console.error(chalk.red("Unable to find target file."))
             }
+        }
+
+        if(options?.all || options?.status || options?.id){
+            if(!options?.target_file)
+                console.error(chalk.red("Please specify the target file to remove the task."))
         }
         
         if(!options?.all && options?.target_file){
-            let targetFile = require(`./task-list/${options.target_file}.json`);
+            const path = `./task-list/${options.target_file}.json`;
+            const isExist = isFileExist(path);
+            let targetFile = isExist ? require(`./task-list/${options.target_file}.json`) : {"task": []};
             const beforeLength = targetFile.task.length;
 
             if(options?.id && options?.status){
-                console.info(`Proceed to removing data in ${options?.target_file} with id: ${options?.id} and status: ${options?.status}`)
+                console.info(chalk.blue(`Proceed to removing data in ${options?.target_file} with id: ${options?.id} and status: ${options?.status}`))
                 targetFile.task = targetFile.task.filter(task => !(task.id === options?.id && task.status === options?.status))
             }
 
             if(options.id && !options?.status){
-                console.info(`Proceed to removing data in ${options?.target_file} with status: ${options?.status}`)
+                console.info((chalk.blue`Proceed to removing data in ${options?.target_file} with id: ${options?.id}`))
                 targetFile.task = targetFile.task.filter(task => task.id !== options?.id)
             }
 
             if(!options.id && options.status){
-                console.info(`Proceed to removing data in ${options?.target_file} with id: ${options?.id}`)
+                console.info(chalk.blue(`Proceed to removing data in ${options?.target_file} with status: ${options?.status}`))
                 targetFile.task = targetFile.task.filter(task => task?.status !== options?.status)
             }
 
             const afterFilterLength = targetFile.task.length;
 
             if(beforeLength === afterFilterLength){
-                console.info("Unable to find matches data to remove.");
+                console.info(chalk.red("Unable to find matches data to remove."));
                 return;
             }
 
             fs.writeFile(`${__dirname}/task-list/${options.target_file}.json`, JSON.stringify(targetFile), function writeJSON(err) {
                 if (err) return console.log(err);
-                console.log(`Successfully remove task.`)
+                console.log(chalk.green(`Successfully remove task.`))
             });
         }
     })
