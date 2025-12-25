@@ -133,9 +133,14 @@ program
     .option("-a, --all", "Will list all of the list if flag included in the command, if not will search for details task.")
     .option("-s, --status <status>", "Will list the list of task based on the status")
     .option("-f, --target_file <file_name>", "Will list all of the specific task")
+    .option("-i, --id <id>", "Will search the data based on id, required target_file flag to use this flag.")
     .action((options) => {
         if(!options.all && !options.target_file){
             program.error("Must include either all status or specific file flag.")
+        }
+
+        if(options.all && options.id){
+            program.error("Unable to use flag all and id at the same time, please use id flag along with target file flag and without all flag.")
         }
 
         if(options?.status){
@@ -144,6 +149,10 @@ program
 
         if(options.target_file){
             let targetFile = require(`./task-list/${options.target_file}.json`);
+            if(options.id){
+                targetFile.task = targetFile.task.filter(task => task.id === options?.id)
+            }
+
             if(options?.status){
                 targetFile.task = targetFile.task.filter(task => task.status === options?.status);
                 console.info(`List task of ${options.target_file}:`)
@@ -194,5 +203,62 @@ program
                 console.error(error, error.message, error.stack)
                 program.error("Error while reading directory");
             }
+        }
+    })
+
+program
+    .command("task:remove")
+    .summary("To add task to the list. For usage: node cli.js task:add -h")
+    .description("This command line used to add task to the task list, the list will be created into JSON file in the folder task-list")
+    .option("-a, --all", "Will remove the task file if flag included in the command, if not will remove the task from the list.")
+    .option("-s, --status <status>", "Will list the list of task based on the status")
+    .option("-f, --target_file <file_name>", "Will list all of the specific task")
+    .option("-i, --id <id>", "Will search the data based on id, required target_file flag to use this flag.")
+    .action((options) => {
+        const folderPath = `${__dirname}/task-list`;
+        if(options?.all && options?.status && options?.target_file && options?.id){
+            program.error("Unable to use all flag at the same time.")
+        }
+
+        if(options?.all && options?.target_file && !options?.status && !options?.id){
+            const isFileExist = fs.existsSync(`${folderPath}/${options?.target_file}.json`)
+            if(isFileExist){
+                fs.unlinkSync(`${folderPath}/${options?.target_file}.json`, (err) => {
+                    if (err) throw err;
+                    console.log(`${options?.target_file} task has successfully deleted.`);
+                })
+            }
+        }
+        
+        if(!options?.all && options?.target_file){
+            let targetFile = require(`./task-list/${options.target_file}.json`);
+            const beforeLength = targetFile.task.length;
+
+            if(options?.id && options?.status){
+                console.info(`Proceed to removing data in ${options?.target_file} with id: ${options?.id} and status: ${options?.status}`)
+                targetFile.task = targetFile.task.filter(task => !(task.id === options?.id && task.status === options?.status))
+            }
+
+            if(options.id && !options?.status){
+                console.info(`Proceed to removing data in ${options?.target_file} with status: ${options?.status}`)
+                targetFile.task = targetFile.task.filter(task => task.id !== options?.id)
+            }
+
+            if(!options.id && options.status){
+                console.info(`Proceed to removing data in ${options?.target_file} with id: ${options?.id}`)
+                targetFile.task = targetFile.task.filter(task => task?.status !== options?.status)
+            }
+
+            const afterFilterLength = targetFile.task.length;
+
+            if(beforeLength === afterFilterLength){
+                console.info("Unable to find matches data to remove.");
+                return;
+            }
+
+            fs.writeFile(`${__dirname}/task-list/${options.target_file}.json`, JSON.stringify(targetFile), function writeJSON(err) {
+                if (err) return console.log(err);
+                console.log(`Successfully remove task.`)
+            });
         }
     })
